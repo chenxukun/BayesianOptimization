@@ -11,7 +11,7 @@ from .target_space import TargetSpace
 
 class BayesianOptimization(object):
 
-    def __init__(self, f, pbounds, random_state=None, verbose=1):
+    def __init__(self, f, pbounds, steps, constraints, constraintParams, extraParam=None, random_state=None, verbose=1):
         """
         :param f:
             Function to be maximized.
@@ -26,12 +26,20 @@ class BayesianOptimization(object):
         """
         # Store the original dictionary
         self.pbounds = pbounds
+        
+        self.steps = steps
+
+        self.constraints = constraints
+
+        self.constraintParams = constraintParams
+
+        self.extraParam = extraParam
 
         self.random_state = ensure_rng(random_state)
 
         # Data structure containing the function to be optimized, the bounds of
         # its domain, and a record of the evaluations we have done so far
-        self.space = TargetSpace(f, pbounds, random_state)
+        self.space = TargetSpace(f, pbounds,steps, constraints, constraintParams, extraParam,random_state)
 
         # Initialization flag
         self.initialized = False
@@ -232,7 +240,6 @@ class BayesianOptimization(object):
         """
         # Reset timer
         self.plog.reset_timer()
-
         # Set acquisition function
         self.util = UtilityFunction(kind=acq, kappa=kappa, xi=xi)
 
@@ -255,6 +262,10 @@ class BayesianOptimization(object):
                         gp=self.gp,
                         y_max=y_max,
                         bounds=self.space.bounds,
+                        steps = self.space.steps,
+                        keys = self.space.keys,
+                        constraints = self.space.constraints,
+                        constraintParams = self.space.constraintParams,
                         random_state=self.random_state,
                         **self._acqkw)
 
@@ -297,6 +308,10 @@ class BayesianOptimization(object):
                             gp=self.gp,
                             y_max=y_max,
                             bounds=self.space.bounds,
+                            steps = self.space.steps,
+                            keys = self.space.keys,
+                            constraints = self.space.constraints,
+                            constraintParams = self.space.constraintParams,
                             random_state=self.random_state,
                             **self._acqkw)
 

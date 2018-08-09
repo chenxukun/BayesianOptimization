@@ -23,7 +23,7 @@ class TargetSpace(object):
     >>> y = space.observe_point(x)
     >>> assert self.max_point()['max_val'] == y
     """
-    def __init__(self, target_func, pbounds, random_state=None):
+    def __init__(self, target_func, pbounds, steps, constraints, constraintParams, extraParam, random_state=None):
         """
         Parameters
         ----------
@@ -47,6 +47,14 @@ class TargetSpace(object):
         self.keys = list(pbounds.keys())
         # Create an array with parameters bounds
         self.bounds = np.array(list(pbounds.values()), dtype=np.float)
+        
+        self.steps = np.array(list(steps.values()), dtype=np.float)
+
+        self.constraints = constraints
+
+        self.constraintParams = constraintParams
+
+        self.extraParam = extraParam
         # Find number of parameters
         self.dim = len(self.keys)
 
@@ -136,7 +144,7 @@ class TargetSpace(object):
         else:
             # measure the target function
             params = dict(zip(self.keys, x))
-            y = self.target_func(**params)
+            y = self.target_func(self.extraParam,**params)
             self.add_observation(x, y)
         return y
 
@@ -250,8 +258,26 @@ class TargetSpace(object):
         # TODO: support integer, category, and basic scipy.optimize constraints
         data = np.empty((num, self.dim))
         for col, (lower, upper) in enumerate(self.bounds):
-            data.T[col] = self.random_state.uniform(lower, upper, size=num)
+            lowerbound = lower/self.steps[col]
+            upperbound = upper/self.steps[col]
+            data.T[col] = self.random_state.uniform(lowerbound, upperbound, size=num)
+            data.T[col] = np.clip(np.rint(data.T[col])*self.steps[col], lower, upper)
+
+
+        for i in  range(len(self.constraints)):
+            con = self.constraints[i]
+            param = self.constraintParams[i]
+            data = np.array(list(filter(lambda xi: con(xi,self.keys,param), data)))
+            if(len(data)!=num and len(data)!=0):
+                print('attemp with',num,'result',len(data))
+                data = np.append(data,self.random_points(num-len(data)),axis=0)
+            elif(len(data)==0):
+                data = self.random_points(num)
+            else:
+                print('attemp with',num,'result',len(data))
+
         return data
+
 
     def max_point(self):
         """
